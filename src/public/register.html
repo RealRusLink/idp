@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Registration</title>
+    <style>
+        body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; padding-top: 50px; }
+        form { display: flex; flex-direction: column; gap: 10px; width: 300px; }
+        #output { margin-top: 20px; padding: 10px; border-radius: 5px; background: #f4f4f4; width: 80%; white-space: pre-wrap; word-break: break-all; }
+    </style>
+</head>
+<body>
+<h2>Create Account</h2>
+<form id="regForm">
+    <input type="text" name="username" placeholder="Username (min 3)" minlength="3" required>
+    <input type="email" name="email" placeholder="Email" required>
+    <input type="password" name="password" placeholder="Password (min 8)" minlength="8" required>
+    <button type="submit" style="background: #007bff; color: white; border: none; padding: 10px; cursor: pointer;">Register</button>
+</form>
+<pre id="output"></pre>
+
+<script>
+    document.getElementById('regForm').onsubmit = async (e) => {
+        e.preventDefault();
+        const formData = Object.fromEntries(new FormData(e.target));
+        const output = document.getElementById('output');
+
+        try {
+            const res = await fetch('/api/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(formData)
+            });
+
+            const text = await res.text();
+            if (!res.ok) {
+                output.style.color = 'red';
+                output.innerText = text;
+            } else {
+                output.style.color = 'green';
+                output.innerText = `Registered successfully!\nToken (from body): ${text}`;
+                setTimeout(() => window.location.href = '/profile.html', 2000);
+            }
+        } catch (err) {
+            output.innerText = 'Connection error';
+        }
+    };
+</script>
+</body>
+</html>
