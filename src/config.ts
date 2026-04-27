@@ -14,8 +14,10 @@ interface ConfigIF {
         password: string;
         tables: {
             users: string;
+            refreshTokens: string;
         };
     };
+    issuer: string;
     crypto: {
         currentVersion: hashVersions;
         default: {
@@ -26,6 +28,7 @@ interface ConfigIF {
         };
         jwtTTL: number;
         refreshTTL: number;
+        refreshTimeout: number;
         key: {
             private: string;
             public: string;
@@ -38,6 +41,7 @@ export class Config implements ConfigIF {
     public webPath: string;
     public listenPort: number;
     public db: ConfigIF["db"];
+    public issuer: string;
     public crypto: ConfigIF["crypto"];
 
     constructor() {
@@ -52,9 +56,11 @@ export class Config implements ConfigIF {
             user: process.env.DB_USER || "",
             password: process.env.DB_PASSWORD || "",
             tables: {
-                users: process.env.USERS_TABLE || ""
+                users: process.env.USERS_TABLE || "",
+                refreshTokens: process.env.REFRESH_TABLE || "",
             }
         };
+        this.issuer = process.env.ISSUER || "",
         this.crypto = {
             currentVersion: (process.env.CURRENT_HASH_VERSION as hashVersions) || "default",
             default: {
@@ -65,6 +71,7 @@ export class Config implements ConfigIF {
             },
             jwtTTL: Number(process.env.JWT_TTL),
             refreshTTL: Number(process.env.REFRESH_TTL),
+            refreshTimeout: Number(process.env.REFRESH_TIMEOUT),
             key: {
                 private: "",
                 public: "",

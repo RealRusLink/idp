@@ -46,7 +46,7 @@ export class LoggerMiddleware extends Middleware{
         this.logger.info(`Entered endpoint ${c.req.method} ${c.req.path}`);
         const time = performance.now();
         await next();
-        this.logger.info(`Endpoint ${c.req.method} ${c.req.path} finished in ${performance.now() - time} ms`)
+        this.logger.info(`Endpoint ${c.req.method} ${c.req.path} finished in ${Math.round(performance.now() - time)} ms. Status: ${c.res.status}`)
     }
 
 

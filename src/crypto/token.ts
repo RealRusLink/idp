@@ -1,8 +1,14 @@
 import {Config} from "../config.js";
 import {createHash, createSign, createVerify, publicDecrypt, type RsaPublicKey, sign} from "node:crypto";
+import { randomBytes, pbkdf2 } from 'node:crypto';
+import { promisify } from 'node:util';
+import type {hashVersions} from "../config.js";
+
+
+const pbkdf2Async = promisify(pbkdf2);
 import z from "zod";
 
-export interface JWTPayload {sub: string, username: string, email: string, exp: number, iat: number}
+export interface JWTPayload {sub: string, username: string, email: string, exp: number, iat: number, iss: string, aud: string}
 
 export type verifyJWTfeedback =
     | { success: false, reason: "Bad JWT format" | "Compromised JWT" | "Expired" }
@@ -13,8 +19,11 @@ const JWTPayloadSchema = z.object({
     username: z.string(),
     email: z.string().email(),
     exp: z.number(),
-    iat: z.number()
+    iat: z.number(),
+    iss: z.string(),
+    aud: z.string()
 });
+
 
 export class TokenManager {
     config: Config;
@@ -22,18 +31,20 @@ export class TokenManager {
         this.config = GlobalConfig;
     }
 
-    generateJWT(uuid: string, email: string, username: string){
+    generateJWT(uuid: string, email: string, username: string, auditor: string = this.config.issuer){
         const header = {
             "alg": "RS256",
             "typ": "JWT"
         }
 
-        const payload = {
+        const payload: JWTPayload = {
             sub: uuid,
             username: username,
             email: email,
             exp: Math.floor((Date.now() + this.config.crypto.jwtTTL)/1000),
             iat: Math.floor(Date.now()/1000),
+            iss: this.config.issuer,
+            aud: auditor,
         }
 
         const section = Buffer.from(JSON.stringify(header)).toString("base64url") + "." + Buffer.from(JSON.stringify(payload)).toString("base64url");
@@ -52,7 +63,6 @@ export class TokenManager {
 
         const [encodedHeader, encodedPayload, encodedSignature] = parts;
 
-        // 1. Криптографическая проверка (Всегда первая!)
         const verifier = createVerify("RSA-SHA256");
         verifier.update(`${encodedHeader}.${encodedPayload}`);
 
@@ -77,5 +87,13 @@ export class TokenManager {
         return { success: true, payload: result.data };
     }
 
+
+    generateRefresh(){
+        return randomBytes(32).toString("hex")
+    };
+
+    hashRefresh(token: string){
+        return createHash("sha256").update(token).digest("hex")
+    }
 
 }

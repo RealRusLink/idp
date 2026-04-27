@@ -10,6 +10,7 @@ import {DBErrorTranslator} from "./errors/translators.js";
 import {AuthenticationMiddleware, errorHandler, LoggerMiddleware} from "./routes/middleware.js";
 import {PasswordManager} from "./crypto/password.js";
 import {TokenManager} from "./crypto/token.js";
+import {BusinessError} from "./errors/types.js";
 
 /**
  * A Proxy-based builder that does component decoration.
@@ -94,7 +95,9 @@ const IS_LOGGING_ENABLED = true;
  * Initialize global logger.
  * CAUTION: "TRACE level may expose private data as it logs function arguments and result"
  */
-const Logger = new LoggerService(consoleConfig)
+const lconf = consoleConfig;
+lconf.suppressedErrors = [BusinessError]
+const Logger = new LoggerService(lconf);
 Logger.logLevel = "TRACE"
 const safeLogLevel: logLevel | logLevel = "TRACE"
 
@@ -138,12 +141,12 @@ const routersDeclaration: RoutersDeclaration = [
 // Register global middlewares.
 const middlewareDeclaration: MiddlewareDeclaration = [
     {
-        middlewareClass: init(LoggerMiddleware, { message: "Logging middleware initialised" }, Logger),
+        middlewareClass: init(LoggerMiddleware, { message: "Logging middleware initialised" }, Logger).addLogger(),
         path: "*",
     },
     {
         middlewareClass: init(AuthenticationMiddleware, { message: "Authentication middleware initialised"}, TokenApi).addLogger(),
-        path: "/api/user"
+        path: "/api/user/*"
     }
 ]
 

@@ -21,6 +21,7 @@ export class BusinessError extends AppError{
     constructor(customMessage: string = "Bad request", code: ContentfulStatusCode = 400) {
         super();
         this.customMessage = customMessage;
+        this.message = `${this.customMessage} ${this.message}`
         this.code = code;
     }
 }
@@ -32,6 +33,7 @@ export class InfrastructureError extends AppError{
     constructor(customMessage: string = "Internal server error", code: ContentfulStatusCode = 500) {
         super();
         this.customMessage = customMessage;
+        this.message = `${this.customMessage} ${this.message}`
         this.code = code;
     }
 }

@@ -7,18 +7,17 @@
         body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; background-color: #f4f4f9; }
         .card { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); max-width: 550px; width: 90%; text-align: center; }
         .hidden { display: none; }
-
         .info-group { text-align: left; background: #f8f9fa; border: 1px solid #e9ecef; padding: 12px; border-radius: 8px; margin: 10px 0; }
         .label { font-weight: bold; color: #666; font-size: 11px; text-transform: uppercase; display: block; margin-bottom: 4px; }
         .value { color: #333; font-family: monospace; font-size: 14px; word-break: break-all; }
-
         .server-message { background: #fff5f5; border: 1px solid #feb2b2; color: #c53030; padding: 15px; border-radius: 8px; margin: 20px 0; font-family: monospace; font-size: 13px; text-align: left; white-space: pre-wrap; }
-
         .btn { padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; text-decoration: none; display: inline-block; transition: 0.2s; margin: 5px; }
         .btn-blue { background: #3182ce; color: white; }
         .btn-green { background: #38a169; color: white; }
-        .btn-red { background: #e53e3e; color: white; margin-top: 15px; }
+        .btn-red { background: #e53e3e; color: white; }
+        .btn-orange { background: #ed8936; color: white; }
         .btn:hover { opacity: 0.9; }
+        .controls { margin-top: 15px; display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
     </style>
 </head>
 <body>
@@ -40,13 +39,17 @@
             <span class="label">JWT Data</span>
             <div id="jwtValue" class="value" style="font-size: 11px; color: #3182ce;"></div>
         </div>
-        <button onclick="logout()" class="btn btn-red">Sign Out</button>
+        <div class="controls">
+            <button onclick="removeJwt()" class="btn btn-orange">Remove JWT</button>
+            <button onclick="logout()" class="btn btn-red">Sign Out</button>
+        </div>
     </div>
 
     <div id="errorSection" class="hidden">
-        <p>Something went wrong with your session:</p>
+        <p>Session issue detected:</p>
         <div id="serverMsg" class="server-message"></div>
-        <div style="margin-top: 20px;">
+        <div class="controls">
+            <button id="rotateBtn" onclick="rotateToken()" class="btn btn-orange hidden">Refresh Session</button>
             <a href="/login.html" class="btn btn-green">Login</a>
             <a href="/register.html" class="btn btn-blue">Register</a>
         </div>
@@ -54,14 +57,22 @@
 </div>
 
 <script>
-    async function loadProfile() {
-        const loader = document.getElementById('loader');
-        const userSection = document.getElementById('userSection');
-        const errorSection = document.getElementById('errorSection');
-        const serverMsg = document.getElementById('serverMsg');
+    const loader = document.getElementById('loader');
+    const userSection = document.getElementById('userSection');
+    const errorSection = document.getElementById('errorSection');
+    const serverMsg = document.getElementById('serverMsg');
+    const rotateBtn = document.getElementById('rotateBtn');
 
+    function showLoading(msg) {
+        loader.innerText = msg;
+        loader.classList.remove('hidden');
+        userSection.classList.add('hidden');
+        errorSection.classList.add('hidden');
+    }
+
+    async function loadProfile() {
+        showLoading('Loading profile...');
         try {
-            // Пытаемся получить данные пользователя
             const res = await fetch('/api/user', { cache: 'no-store' });
             const responseText = await res.text();
 
@@ -69,15 +80,14 @@
 
             if (res.ok) {
                 const data = JSON.parse(responseText);
-
                 document.getElementById('username').innerText = data.userData.username;
                 document.getElementById('email').innerText = data.userData.email;
                 document.getElementById('jwtValue').innerText = data.jwt;
-
                 userSection.classList.remove('hidden');
             } else {
-                serverMsg.innerText = `Server Response (${res.status}):\n${responseText}`;
+                serverMsg.innerText = `Status ${res.status}: ${responseText}`;
                 errorSection.classList.remove('hidden');
+                if (res.status === 401) rotateBtn.classList.remove('hidden');
             }
         } catch (err) {
             loader.classList.add('hidden');
@@ -86,11 +96,40 @@
         }
     }
 
+    async function rotateToken() {
+        showLoading('Attempting to rotate token...');
+        try {
+            const res = await fetch('/api/rotate', { method: 'POST' });
+            if (res.ok) {
+                await loadProfile();
+            } else {
+                const text = await res.text();
+                loader.classList.add('hidden');
+                serverMsg.innerText = `Rotation failed: ${text}`;
+                errorSection.classList.remove('hidden');
+                rotateBtn.classList.add('hidden');
+            }
+        } catch (err) {
+            loader.classList.add('hidden');
+            serverMsg.innerText = `Network error during rotation`;
+            errorSection.classList.remove('hidden');
+        }
+    }
+
+    async function removeJwt() {
+        await fetch('/api/user/removejwt', { method: 'POST' });
+        document.cookie = "jwt=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; SameSite=Lax";
+        window.location.reload();
+    }
+
     async function logout() {
-        const res = await fetch('/api/user/logout', { method: 'POST' });
-
-        document.cookie = "jwt=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-
+        try {
+            await fetch('/api/user/logout', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+        } catch (e) {}
+        document.cookie = "jwt=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; SameSite=Lax";
         window.location.reload();
     }
 

@@ -1,5 +1,5 @@
 import {type Context, Hono} from "hono";
-import {setCookie, deleteCookie} from "hono/cookie"
+import {setCookie, deleteCookie, getCookie} from "hono/cookie"
 import type {DBAdapter} from "../db/adapter.js";
 import type {Config, hashVersions} from "../config.js";
 import {BusinessError, InfrastructureError} from "../errors/types.js";
@@ -38,7 +38,9 @@ export class Api extends Hono{
     setupRoutes(){
         this.post("/register", (c) => this.register(c))
         this.post("/authenticate", (c) => this.authenticate(c))
+        this.post("/rotate", (c) => this.rotation(c))
         this.post("/user/logout", (c) => this.logOut(c))
+        this.post("/user/removejwt", (c) => this.removeJWT(c))
         this.get("/user", (c) => this.echoToken(c))
     }
 
@@ -52,8 +54,15 @@ export class Api extends Hono{
 
     async logOut(c: Context){
         deleteCookie(c, 'jwt');
+        deleteCookie(c, 'refresh');
         return c.text("Logged out successfully", 200)
     }
+
+    async removeJWT(c: Context){
+        deleteCookie(c, 'jwt');
+        return c.text("Removed JWT successfully", 200)
+    }
+
 
 
     /**
@@ -86,6 +95,7 @@ export class Api extends Hono{
         if (!registrationResult.success) throw new InfrastructureError("DB error", 507)
         const jwt = this.TokenApi.generateJWT(registrationResult.data.uuid, data.email, data.username)
         setCookie(c, "jwt", jwt)
+        setCookie(c, "refresh", await this.#createRefresh(registrationResult.data.uuid));
         return c.text(jwt, 200)
     }
 
@@ -113,9 +123,47 @@ export class Api extends Hono{
 
         if (!passwordCheck) throw new BusinessError("Invalid credentials", 400)
         const jwt = this.TokenApi.generateJWT(dbUserData.uuid, dbUserData.email, dbUserData.username);
-        setCookie(c, "jwt", jwt)
+        setCookie(c, "jwt", jwt);
+        setCookie(c, "refresh", await this.#createRefresh(dbUserData.uuid));
         return c.text(jwt, 200)
     }
+
+
+    async rotation(c: Context) {
+        const validationFormSchema = z.string().max(255)
+        const form = getCookie(c,"refresh");
+        if (!form) throw new BusinessError("Unauthorised", 401);
+        const validationResult = validationFormSchema.safeParse(form);
+        if (!validationResult.success) throw new BusinessError("Bad token", 400)
+        const userTokenHash  = this.TokenApi.hashRefresh(validationResult.data);
+        const tokenCheckResult = await this.DBApi.verifyTokenHash(userTokenHash);
+        if (!tokenCheckResult.success) throw new BusinessError("Unauthorised", 401);
+
+        const newRefreshToken = await this.#createRefresh(tokenCheckResult.uuid);
+
+        await this.DBApi.deleteTokenHash(userTokenHash);
+
+        const userDataRequest = await this.DBApi.getUserById(tokenCheckResult.uuid);
+
+        if (!userDataRequest.success) throw new InfrastructureError(userDataRequest.reason, 507);
+
+
+        const jwt = this.TokenApi.generateJWT(userDataRequest.data.uuid, userDataRequest.data.email, userDataRequest.data.username)
+        setCookie(c, "jwt", jwt)
+        setCookie(c, "refresh", newRefreshToken);
+        return c.text(jwt + newRefreshToken, 200)
+
+    }
+
+
+    async #createRefresh(uuid: string){
+        const token = this.TokenApi.generateRefresh();
+        const tokenHash = this.TokenApi.hashRefresh(token);
+        await this.DBApi.writeTokenHash(uuid, tokenHash, this.GlobalConfig.crypto.refreshTTL);
+        return token;
+    }
+
+
 }
 
 export default {Api}

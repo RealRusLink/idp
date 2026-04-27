@@ -21,6 +21,7 @@ export type getUserFeedback =
     | { success: true, data: User }
     | { success: false, reason: "User doesn't exist" | "DB failure" | "Both username and email are already taken" | "Username is already taken" | "Email is already taken"}
 
+export type tokenFeedback = {success: true, uuid: string} | {success: false}
 
 /**
  * Data access layer that provides methods for user management and secret handling.
@@ -92,6 +93,32 @@ export class DBAdapter {
 
         return { success: false, reason: "User doesn't exist" };
     }
+
+
+
+    async writeTokenHash(uuid: string, tokenHash: string, expire: number = this.config.crypto.refreshTTL){
+        const queryResult = await this.connection.pool.query(
+            `INSERT INTO ${this.config.db.tables.refreshTokens} (token_hash, user_id, exp)
+            VALUES ($1, $2, $3)
+            RETURNING exp`, [tokenHash, uuid, new Date(Date.now() + expire)]
+        )
+        return queryResult.rows[0].exp as Date
+    }
+
+    async deleteTokenHash(tokenHash: string){
+        const queryResult = await this.connection.pool.query(`DELETE FROM ${this.config.db.tables.refreshTokens} 
+        WHERE token_hash = $1`, [tokenHash]);
+        return queryResult.rows.length > 0;
+    }
+
+
+    async verifyTokenHash(tokenHash: string): Promise<tokenFeedback>{
+        const queryResult = await this.connection.pool.query(`
+            SELECT user_id FROM ${this.config.db.tables.refreshTokens} WHERE token_hash = $1 AND exp > NOW()`,
+            [tokenHash])
+        return queryResult.rows.length > 0 ? {success: true, uuid: queryResult.rows[0].user_id} : {success: false}
+    }
+
 
 }
 
