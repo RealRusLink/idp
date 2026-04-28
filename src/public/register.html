@@ -33,7 +33,10 @@
             });
 
             const text = await res.text();
-            if (!res.ok) {
+            if (res.redirected){
+                window.location.href = res.url;
+            }
+            else if (!res.ok) {
                 output.style.color = 'red';
                 output.innerText = text;
             } else {
@@ -42,7 +45,7 @@
                 setTimeout(() => window.location.href = '/profile.html', 2000);
             }
         } catch (err) {
-            output.innerText = 'Connection error';
+            output.innerText = 'Connection error' + err.message;
         }
     };
 </script>

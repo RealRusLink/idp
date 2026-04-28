@@ -42,6 +42,7 @@ export class Api extends Hono{
         this.post("/user/logout", (c) => this.logOut(c))
         this.post("/user/removejwt", (c) => this.removeJWT(c))
         this.get("/user", (c) => this.echoToken(c))
+        this.get("/key", (c) => this.getKey(c))
     }
 
 
@@ -91,12 +92,37 @@ export class Api extends Hono{
 
         const registrationResult = await this.DBApi.registerUser(data.username, data.email, passwordHash, salt, this.GlobalConfig.crypto.currentVersion)
 
+        const redirect = getCookie(c, "redirect_url");
+        const auditor = getCookie(c, "auditor");
+
+        const contextParameters = z.object({
+            redirect_url: z.url(),
+            auditor: z.string(),
+        })
+
+
+        const contextValidationResult = contextParameters.safeParse({redirect_url: redirect, auditor});
 
         if (!registrationResult.success) throw new InfrastructureError("DB error", 507)
-        const jwt = this.TokenApi.generateJWT(registrationResult.data.uuid, data.email, data.username)
+
+        const jwt = this.TokenApi.generateJWT(registrationResult.data.uuid, data.email, data.username);
+
         setCookie(c, "jwt", jwt)
         setCookie(c, "refresh", await this.#createRefresh(registrationResult.data.uuid));
-        return c.text(jwt, 200)
+        deleteCookie(c, "redirect_url");
+        deleteCookie(c, "auditor");
+
+        if (contextValidationResult.success){
+            const foreignJWT = this.TokenApi.generateJWT(registrationResult.data.uuid, data.email, data.username, contextValidationResult.data.auditor);
+            const fullRedirect = new URL(contextValidationResult.data.redirect_url);
+            fullRedirect.searchParams.set("code", "temp_code")
+            fullRedirect.protocol = "http";
+            console.log(fullRedirect.toJSON())
+            return c.redirect(fullRedirect.toString(), 303);
+        }
+
+
+        return c.text(jwt, 200);
     }
 
 
@@ -154,6 +180,13 @@ export class Api extends Hono{
         return c.text(jwt + newRefreshToken, 200)
 
     }
+
+
+    async getKey(c: Context){
+        return c.text(this.GlobalConfig.crypto.key.public, 200);
+    }
+
+
 
 
     async #createRefresh(uuid: string){
