@@ -28,12 +28,12 @@ export class Web extends Hono {
     }
 
     setupRoutes(){
-        this.get("/redirect_login", (c) => this.loginRedirected(c));
+        this.get("/authenticate", (c) => this.authenticate(c));
     }
 
 
 
-    loginRedirected(c: Context){
+    authenticate(c: Context){
         const form = c.req.query();
         const contextParameters = z.object({
             redirect_url: z.url(),
