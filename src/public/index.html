@@ -3,24 +3,102 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Auth Service</title>
+    <title>Auth Service - Welcome</title>
     <style>
-        body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; background-color: #f4f4f9; }
-        h1 { color: #333; margin-bottom: 30px; }
-        nav { display: flex; gap: 20px; }
-        .btn { padding: 12px 24px; text-decoration: none; color: white; border-radius: 5px; font-weight: bold; transition: opacity 0.3s; }
-        .btn:hover { opacity: 0.8; }
-        .btn-register { background-color: #007bff; }
-        .btn-login { background-color: #28a745; }
-        .btn-profile { background-color: #6c757d; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f0f2f5;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            color: #1c1e21;
+        }
+        .card {
+            text-align: center;
+            background: #ffffff;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            max-width: 400px;
+            width: 90%;
+        }
+        h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+            color: #1a73e8;
+        }
+        p {
+            font-size: 15px;
+            color: #606770;
+            margin-bottom: 30px;
+            line-height: 1.5;
+        }
+        nav {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .btn {
+            display: block;
+            padding: 12px;
+            text-decoration: none;
+            color: white;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 16px;
+            transition: transform 0.1s, background-color 0.2s;
+        }
+        .btn:active {
+            transform: scale(0.98);
+        }
+        .btn-register {
+            background-color: #28a745;
+        }
+        .btn-register:hover {
+            background-color: #218838;
+        }
+        .btn-login {
+            background-color: #1a73e8;
+        }
+        .btn-login:hover {
+            background-color: #1557b0;
+        }
+        .btn-profile {
+            background-color: #ffffff;
+            color: #4b4f56;
+            border: 1px solid #ccd0d5;
+        }
+        .btn-profile:hover {
+            background-color: #f5f6f7;
+        }
+        .status-tag {
+            display: inline-block;
+            background: #e8f0fe;
+            color: #1967d2;
+            padding: 4px 12px;
+            border-radius: 16px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            text-transform: uppercase;
+        }
     </style>
 </head>
 <body>
-<h1>Authentication System</h1>
-<nav>
-    <a href="/register.html" class="btn btn-register">Register</a>
-    <a href="/login.html" class="btn btn-login">Login</a>
-    <a href="/profile.html" class="btn btn-profile">Profile</a>
-</nav>
+
+<div class="card">
+    <div class="status-tag">Identity Provider</div>
+    <h1>Authentication System</h1>
+    <p>Secure access to your resources. Please choose an action to continue.</p>
+
+    <nav>
+        <a href="/login.html" class="btn btn-login">Sign In</a>
+        <a href="/register.html" class="btn btn-register">Create Account</a>
+        <a href="/profile.html" class="btn btn-profile">View Profile</a>
+    </nav>
+</div>
+
 </body>
 </html>

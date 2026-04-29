@@ -2,56 +2,63 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Registration</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Account</title>
     <style>
-        body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; padding-top: 50px; }
-        form { display: flex; flex-direction: column; gap: 10px; width: 300px; }
-        #output { margin-top: 20px; padding: 10px; border-radius: 5px; background: #f4f4f4; width: 80%; white-space: pre-wrap; word-break: break-all; }
+        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .card { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 100%; max-width: 350px; text-align: center; }
+        h2 { color: #28a745; margin-bottom: 20px; }
+        form { display: flex; flex-direction: column; gap: 15px; }
+        input { padding: 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; }
+        button { background: #28a745; color: white; border: none; padding: 12px; border-radius: 6px; cursor: pointer; font-weight: 600; transition: 0.2s; }
+        button:hover { background: #218838; }
+        #status { margin-top: 20px; font-size: 14px; min-height: 40px; line-height: 1.5; }
+        .success { color: #28a745; }
+        .error { color: #dc3545; }
+        .link-alt { margin-top: 15px; font-size: 13px; color: #606770; }
+        .link-alt a { color: #1a73e8; text-decoration: none; }
     </style>
 </head>
 <body>
-<h2>Create Account</h2>
-<form id="regForm">
-    <input type="text" name="username" placeholder="Username (min 3)" minlength="3" required>
-    <input type="email" name="email" placeholder="Email" required>
-    <input type="password" name="password" placeholder="Password (min 8)" minlength="8" required>
-    <button type="submit" style="background: #007bff; color: white; border: none; padding: 10px; cursor: pointer;">Register</button>
-</form>
-<pre id="output"></pre>
+<div class="card">
+    <h2>Join Us</h2>
+    <form id="regForm">
+        <input type="text" name="username" placeholder="Username (min 3 chars)" minlength="3" required>
+        <input type="email" name="email" placeholder="Email" required>
+        <input type="password" name="password" placeholder="Password (min 8 chars)" minlength="8" required>
+        <button type="submit" id="submitBtn">Create Account</button>
+    </form>
+    <div class="link-alt">Already have an account? <a href="/login.html">Sign In</a></div>
+    <div id="status"></div>
+</div>
 
 <script>
     document.getElementById('regForm').onsubmit = async (e) => {
         e.preventDefault();
-        const formData = Object.fromEntries(new FormData(e.target));
-        const output = document.getElementById('output');
+        const btn = document.getElementById('submitBtn');
+        const status = document.getElementById('status');
+        btn.disabled = true;
+        status.innerText = 'Creating your account...';
 
         try {
             const res = await fetch('/api/register', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData),
-                redirect: 'follow'
+                body: JSON.stringify(Object.fromEntries(new FormData(e.target)))
             });
-            if (res.redirected) {
-                window.location.href = res.url;
-                return;
-            }
-            const text = await res.text();
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.message || 'Registration failed');
 
-            if (!res.ok) {
-                output.style.color = 'red';
-                output.innerText = text;
-            } else {
-                output.style.color = 'green';
-                output.innerText = `Registered successfully!`;
+            status.className = 'success';
+            status.innerText = data.type === 'external'
+                ? `Account created! Moving to ${new URL(data.url).host}...`
+                : 'Account created! Redirecting to profile...';
 
-                setTimeout(() => {
-                    window.location.href = 'http://localhost:443/profile';
-                }, 2000);
-            }
+            setTimeout(() => window.location.href = data.url, 1500);
         } catch (err) {
-            output.style.color = 'red';
-            output.innerText = 'Connection error: ' + err.message;
+            status.className = 'error';
+            status.innerText = err.message;
+            btn.disabled = false;
         }
     };
 </script>

@@ -2,56 +2,162 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>User Profile</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Profile - Management</title>
     <style>
-        body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; background-color: #f4f4f9; }
-        .card { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); max-width: 550px; width: 90%; text-align: center; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f0f2f5;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            color: #1c1e21;
+        }
+        .card {
+            background: #ffffff;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            max-width: 500px;
+            width: 90%;
+            text-align: center;
+        }
+        h2 {
+            font-size: 24px;
+            margin-bottom: 24px;
+            color: #1a73e8;
+        }
         .hidden { display: none; }
-        .info-group { text-align: left; background: #f8f9fa; border: 1px solid #e9ecef; padding: 12px; border-radius: 8px; margin: 10px 0; }
-        .label { font-weight: bold; color: #666; font-size: 11px; text-transform: uppercase; display: block; margin-bottom: 4px; }
-        .value { color: #333; font-family: monospace; font-size: 14px; word-break: break-all; }
-        .server-message { background: #fff5f5; border: 1px solid #feb2b2; color: #c53030; padding: 15px; border-radius: 8px; margin: 20px 0; font-family: monospace; font-size: 13px; text-align: left; white-space: pre-wrap; }
-        .btn { padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; text-decoration: none; display: inline-block; transition: 0.2s; margin: 5px; }
-        .btn-blue { background: #3182ce; color: white; }
-        .btn-green { background: #38a169; color: white; }
-        .btn-red { background: #e53e3e; color: white; }
-        .btn-orange { background: #ed8936; color: white; }
-        .btn:hover { opacity: 0.9; }
-        .controls { margin-top: 15px; display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
+
+        /* Группы данных */
+        .info-group {
+            text-align: left;
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 12px;
+        }
+        .label {
+            font-weight: bold;
+            color: #8d949e;
+            font-size: 11px;
+            text-transform: uppercase;
+            display: block;
+            margin-bottom: 6px;
+            letter-spacing: 0.5px;
+        }
+        .value {
+            color: #1c1e21;
+            font-family: 'Segoe UI', sans-serif;
+            font-size: 15px;
+            word-break: break-all;
+            display: block;
+        }
+        .value-jwt {
+            font-family: monospace;
+            font-size: 11px;
+            color: #1a73e8;
+            background: #e8f0fe;
+            padding: 8px;
+            border-radius: 4px;
+            margin-top: 5px;
+            max-height: 80px;
+            overflow-y: auto;
+        }
+
+        /* Сообщения сервера */
+        .server-message {
+            background: #fff5f5;
+            border: 1px solid #feb2b2;
+            color: #c53030;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            font-family: monospace;
+            font-size: 13px;
+            text-align: left;
+            white-space: pre-wrap;
+        }
+
+        /* Кнопки */
+        .controls {
+            margin-top: 25px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .btn-row {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+        .btn {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            text-decoration: none;
+            transition: 0.2s;
+        }
+        .btn-blue { background: #1a73e8; color: white; }
+        .btn-green { background: #28a745; color: white; }
+        .btn-red { background: #dc3545; color: white; }
+        .btn-outline {
+            background: white;
+            color: #606770;
+            border: 1px solid #ccd0d5;
+        }
+        .btn:hover { opacity: 0.9; transform: translateY(-1px); }
+
+        #loader { color: #606770; font-style: italic; }
     </style>
 </head>
 <body>
 
 <div class="card">
-    <h2>Profile Status</h2>
-    <div id="loader">Checking authentication...</div>
+    <h2>Profile Management</h2>
+
+    <div id="loader">Syncing session...</div>
 
     <div id="userSection" class="hidden">
         <div class="info-group">
-            <span class="label">Username</span>
+            <span class="label">Identity Username</span>
             <span id="username" class="value"></span>
         </div>
         <div class="info-group">
-            <span class="label">Email</span>
+            <span class="label">Verified Email</span>
             <span id="email" class="value"></span>
         </div>
         <div class="info-group">
-            <span class="label">JWT Data</span>
-            <div id="jwtValue" class="value" style="font-size: 11px; color: #3182ce;"></div>
+            <span class="label">Current Access Token (JWT)</span>
+            <div id="jwtValue" class="value-jwt"></div>
         </div>
+
         <div class="controls">
-            <button onclick="removeJwt()" class="btn btn-orange">Remove JWT</button>
-            <button onclick="logout()" class="btn btn-red">Sign Out</button>
+            <div class="btn-row">
+                <button onclick="removeJwt()" class="btn btn-outline">Clear JWT</button>
+                <button onclick="logout()" class="btn btn-red">Sign Out</button>
+            </div>
+            <a href="/" class="btn btn-outline">Back to Home</a>
         </div>
     </div>
 
     <div id="errorSection" class="hidden">
-        <p>Session issue detected:</p>
+        <p style="color: #606770;">Authentication required or session expired.</p>
         <div id="serverMsg" class="server-message"></div>
+
         <div class="controls">
-            <button id="rotateBtn" onclick="rotateToken()" class="btn btn-orange hidden">Refresh Session</button>
-            <a href="/login.html" class="btn btn-green">Login</a>
-            <a href="/register.html" class="btn btn-blue">Register</a>
+            <button id="rotateBtn" onclick="rotateToken()" class="btn btn-blue hidden">Refresh Session</button>
+            <div class="btn-row">
+                <a href="/login.html" class="btn btn-blue">Login</a>
+                <a href="/register.html" class="btn btn-green">Register</a>
+            </div>
         </div>
     </div>
 </div>
@@ -71,11 +177,10 @@
     }
 
     async function loadProfile() {
-        showLoading('Loading profile...');
+        showLoading('Validating identity...');
         try {
             const res = await fetch('/api/user', { cache: 'no-store' });
             const responseText = await res.text();
-
             loader.classList.add('hidden');
 
             if (res.ok) {
@@ -85,19 +190,19 @@
                 document.getElementById('jwtValue').innerText = data.jwt;
                 userSection.classList.remove('hidden');
             } else {
-                serverMsg.innerText = `Status ${res.status}: ${responseText}`;
+                serverMsg.innerText = responseText || `Session Error (${res.status})`;
                 errorSection.classList.remove('hidden');
                 if (res.status === 401) rotateBtn.classList.remove('hidden');
             }
         } catch (err) {
             loader.classList.add('hidden');
-            serverMsg.innerText = `Fetch Error: ${err.message}`;
+            serverMsg.innerText = `Connection failed: ${err.message}`;
             errorSection.classList.remove('hidden');
         }
     }
 
     async function rotateToken() {
-        showLoading('Attempting to rotate token...');
+        showLoading('Refreshing access token...');
         try {
             const res = await fetch('/api/rotate', { method: 'POST' });
             if (res.ok) {
@@ -105,13 +210,13 @@
             } else {
                 const text = await res.text();
                 loader.classList.add('hidden');
-                serverMsg.innerText = `Rotation failed: ${text}`;
+                serverMsg.innerText = `Critical: Refresh token expired. Please re-login.`;
                 errorSection.classList.remove('hidden');
                 rotateBtn.classList.add('hidden');
             }
         } catch (err) {
             loader.classList.add('hidden');
-            serverMsg.innerText = `Network error during rotation`;
+            serverMsg.innerText = `Network error during token rotation.`;
             errorSection.classList.remove('hidden');
         }
     }
@@ -124,13 +229,11 @@
 
     async function logout() {
         try {
-            await fetch('/api/user/logout', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' }
-            });
+            await fetch('/api/user/logout', { method: 'POST' });
         } catch (e) {}
         document.cookie = "jwt=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; SameSite=Lax";
-        window.location.reload();
+        document.cookie = "refresh=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; SameSite=Lax";
+        window.location.href = '/login.html';
     }
 
     loadProfile();
