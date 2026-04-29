@@ -42,7 +42,7 @@ export class Api extends Hono{
         this.post("/login", (c) => this.login(c))
         this.post("/rotate", (c) => this.rotation(c))
         this.post("/exchange", (c) => this.exchange(c))
-        this.post("/user/logout", (c) => this.logOut(c))
+        this.all("/user/logout", (c) => this.logOut(c))
         this.post("/user/removejwt", (c) => this.removeJWT(c))
         this.get("/user", (c) => this.echoToken(c))
         this.get("/key", (c) => this.getKey(c))
@@ -56,10 +56,23 @@ export class Api extends Hono{
         else throw new InfrastructureError("Auth middleware failed", 500)
     }
 
-    async logOut(c: Context){
-        deleteCookie(c, 'jwt');
-        deleteCookie(c, 'refresh');
-        return c.text("Logged out successfully", 200)
+    async logOut(c: Context) {
+        const redirectUrl = getCookie(c, "return_to") || c.req.query("return_to");
+        deleteCookie(c, 'jwt', { path: '/' });
+        deleteCookie(c, 'refresh', { path: '/' });
+        deleteCookie(c, "redirect_url", { path: '/' });
+        deleteCookie(c, "auditor", { path: '/' });
+
+        if (redirectUrl) {
+            try {
+                const validUrl = new URL(redirectUrl);
+                return c.redirect(validUrl.toString(), 303);
+            } catch (e) {
+                return c.redirect('/', 303);
+            }
+        }
+
+        return c.text("Logged out successfully", 200);
     }
 
     async removeJWT(c: Context){
@@ -81,90 +94,114 @@ export class Api extends Hono{
 
 
 
-    async handleRedirection(c: Context, savedUserData: User){
+    async handleRedirection(c: Context, savedUserData: User) {
         const redirect_url = getCookie(c, "redirect_url");
         const auditor = getCookie(c, "auditor");
+
         const contextParameters = z.object({
-            redirect_url: z.url(),
+            redirect_url: z.string().url(),
             auditor: z.string(),
-        })
-        const contextValidationResult = contextParameters.safeParse({redirect_url, auditor});
+        });
+
+        const contextValidationResult = contextParameters.safeParse({ redirect_url, auditor });
+
         deleteCookie(c, "redirect_url");
         deleteCookie(c, "auditor");
 
-        if (contextValidationResult.success){
-            const foreignJWT = this.TokenApi.generateJWT(savedUserData.uuid, savedUserData.email, savedUserData.username, contextValidationResult.data.auditor);
+        if (contextValidationResult.success) {
+            const foreignJWT = this.TokenApi.generateJWT(
+                savedUserData.uuid,
+                savedUserData.email,
+                savedUserData.username,
+                contextValidationResult.data.auditor
+            );
+
             const fullRedirect = new URL(contextValidationResult.data.redirect_url);
             const code = this.TokenApi.generateExchange();
+
             this.ExchangeApi.set(code, foreignJWT);
+
             fullRedirect.searchParams.set("code", code);
             fullRedirect.protocol = "http";
-            return {overrideResponse: true, response: c.redirect(fullRedirect.toString(), 303)};
+
+            return {
+                type: "external",
+                url: fullRedirect.toString()
+            };
         }
-        return {overrideResponse: false}
+
+        return {
+            type: "internal",
+            url: "/profile.html"
+        };
     }
 
-
-    /**
-     * Registers user
-     */
-    async register(c: Context){
-
+    async register(c: Context) {
         const userShouldNotExist = async (username: string, email: string) => {
             const userDataRequest = await this.DBApi.getUser(username, email);
-            if (userDataRequest.success) throw new BusinessError("User already exists", 401)
-            if (userDataRequest.reason !== "User doesn't exist") throw new BusinessError(userDataRequest.reason, 401)
-        }
+            if (userDataRequest.success) throw new BusinessError("User already exists", 401);
+        };
 
         const saveUser = async (username: string, email: string, password: string) => {
             const salt = this.PasswordApi.generateSalt();
             const passwordHash = await this.PasswordApi.hashPassword(password, salt);
-
-            const registrationResult = await this.DBApi.registerUser(username, email, passwordHash, salt, this.GlobalConfig.crypto.currentVersion)
-            if (!registrationResult.success) throw new InfrastructureError("DB error", 507)
+            const registrationResult = await this.DBApi.registerUser(username, email, passwordHash, salt, this.GlobalConfig.crypto.currentVersion);
+            if (!registrationResult.success) throw new InfrastructureError("DB error", 507);
             return registrationResult.data;
-        }
+        };
 
-
-        const registrationData = await this.verifyUserCredentials(await c.req.json())
-
+        const registrationData = await this.verifyUserCredentials(await c.req.json());
         await userShouldNotExist(registrationData.username, registrationData.email);
 
-        const savedUserData = await saveUser(registrationData.username, registrationData.email, registrationData.password)
+        const savedUserData = await saveUser(registrationData.username, registrationData.email, registrationData.password);
 
         const jwt = this.TokenApi.generateJWT(savedUserData.uuid, savedUserData.email, savedUserData.username);
-
-        setCookie(c, "jwt", jwt)
+        setCookie(c, "jwt", jwt);
         setCookie(c, "refresh", await this.#createRefresh(savedUserData.uuid));
-
 
         const redirection = await this.handleRedirection(c, savedUserData);
 
-
-        return redirection.overrideResponse ? redirection.response : c.text(jwt, 200);
+        return c.json({
+            success: true,
+            message: "Registration successful",
+            jwt: jwt,
+            ...redirection
+        }, 200);
     }
 
+    async login(c: Context) {
+        const form = await c.req.json();
 
-    async login(c: Context){
-        const form = await c.req.json()
         const getUser = async (username: string, email: string) => {
             const dbRequest = await this.DBApi.getUser(username, email);
-            if (!dbRequest.success) throw new BusinessError("Invalid credentials", 400)
+            if (!dbRequest.success) throw new BusinessError("Invalid credentials", 400);
             return dbRequest.data;
-        }
+        };
 
         const inputUserData = await this.verifyUserCredentials(form);
-
         const userData = await getUser(inputUserData.username, inputUserData.email);
 
-        const passwordCheck =  await this.PasswordApi.verifyPassword(inputUserData.password, userData.salt, userData.password_hash, userData.hash_version as hashVersions)
-        if (!passwordCheck) throw new BusinessError("Invalid credentials", 400)
+        const passwordCheck = await this.PasswordApi.verifyPassword(
+            inputUserData.password,
+            userData.salt,
+            userData.password_hash,
+            userData.hash_version as hashVersions
+        );
+
+        if (!passwordCheck) throw new BusinessError("Invalid credentials", 400);
 
         const jwt = this.TokenApi.generateJWT(userData.uuid, userData.email, userData.username);
         setCookie(c, "jwt", jwt);
         setCookie(c, "refresh", await this.#createRefresh(userData.uuid));
+
         const redirection = await this.handleRedirection(c, userData);
-        return redirection.overrideResponse ? redirection.response : c.text(jwt, 200);
+
+        return c.json({
+            success: true,
+            message: "Login successful",
+            jwt: jwt,
+            ...redirection
+        }, 200);
     }
 
 
