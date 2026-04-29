@@ -36,6 +36,7 @@ const loadData = () => {
             },
             jwtTTL: Number(process.env.JWT_TTL),
             refreshTTL: Number(process.env.REFRESH_TTL),
+            exchangeTTL: Number(process.env.EXCHANGE_TTL),
             refreshTimeout: Number(process.env.REFRESH_TIMEOUT),
             key: {
                 private: privateKey,

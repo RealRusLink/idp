@@ -56,6 +56,9 @@ export class TokenManager {
         return `${section}.${signature}`
     };
 
+    generateExchange(){
+        return randomBytes(32).toString("hex")
+    }
 
 
     verifyJWT(jwt: string, publicKey: string = this.config.crypto.key.public): verifyJWTfeedback {

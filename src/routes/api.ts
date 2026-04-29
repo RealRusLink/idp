@@ -6,6 +6,7 @@ import {BusinessError, InfrastructureError} from "../errors/types.js";
 import z from "zod"
 import type {PasswordManager} from "../crypto/password.js";
 import type {JWTPayload, TokenManager} from "../crypto/token.js";
+import type {ExchangeStorageManager} from "../db/exchange.js";
 
 /**
  * API router class that extends Hono to provide specialized endpoints for user secrets.
@@ -19,16 +20,17 @@ export class Api extends Hono{
     GlobalConfig: Config;
     PasswordApi: PasswordManager;
     TokenApi: TokenManager;
-
+    ExchangeApi: ExchangeStorageManager;
     /**
      * Initializes the API with required database and configuration dependencies, then sets up internal routing.
      */
-    constructor(DBApi: DBAdapter, GlobalConfig: Config, PasswordApi: PasswordManager, TokenApi: TokenManager) {
+    constructor(DBApi: DBAdapter, GlobalConfig: Config, PasswordApi: PasswordManager, TokenApi: TokenManager, ExchangeApi: ExchangeStorageManager) {
         super();
         this.DBApi = DBApi;
         this.GlobalConfig = GlobalConfig;
         this.PasswordApi = PasswordApi;
         this.TokenApi = TokenApi;
+        this.ExchangeApi = ExchangeApi;
         this.setupRoutes();
     }
 
@@ -39,6 +41,7 @@ export class Api extends Hono{
         this.post("/register", (c) => this.register(c))
         this.post("/login", (c) => this.login(c))
         this.post("/rotate", (c) => this.rotation(c))
+        this.post("/exchange", (c) => this.exchange(c))
         this.post("/user/logout", (c) => this.logOut(c))
         this.post("/user/removejwt", (c) => this.removeJWT(c))
         this.get("/user", (c) => this.echoToken(c))
@@ -92,9 +95,10 @@ export class Api extends Hono{
         if (contextValidationResult.success){
             const foreignJWT = this.TokenApi.generateJWT(savedUserData.uuid, savedUserData.email, savedUserData.username, contextValidationResult.data.auditor);
             const fullRedirect = new URL(contextValidationResult.data.redirect_url);
-            fullRedirect.searchParams.set("code", "temp_code")
+            const code = this.TokenApi.generateExchange();
+            this.ExchangeApi.set(code, foreignJWT);
+            fullRedirect.searchParams.set("code", code);
             fullRedirect.protocol = "http";
-            console.log(fullRedirect.toJSON())
             return {overrideResponse: true, response: c.redirect(fullRedirect.toString(), 303)};
         }
         return {overrideResponse: false}
@@ -187,6 +191,25 @@ export class Api extends Hono{
         setCookie(c, "jwt", jwt)
         setCookie(c, "refresh", newRefreshToken);
         return c.text(jwt + newRefreshToken, 200)
+
+    }
+
+
+    async exchange(c: Context){
+        const form = await c.req.json()
+        const codeValidationForm = z.object({
+            code: z.string()
+        })
+
+        const validationResult = codeValidationForm.safeParse(form);
+
+        if (!validationResult.success) throw new BusinessError("Bad request", 400);
+
+        const getJWT = this.ExchangeApi.pop(validationResult.data.code);
+
+        if (!getJWT) throw new BusinessError("Unauthorised", 401);
+
+        return c.text(getJWT, 200);
 
     }
 

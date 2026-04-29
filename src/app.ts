@@ -11,7 +11,7 @@ import {AuthenticationMiddleware, errorHandler, LoggerMiddleware} from "./routes
 import {PasswordManager} from "./crypto/password.js";
 import {TokenManager} from "./crypto/token.js";
 import {BusinessError} from "./errors/types.js";
-
+import {ExchangeStorageManager} from "./db/exchange.js";
 /**
  * A Proxy-based builder that does component decoration.
  * It encapsulates the 'logRule' state to ensure that logging levels
@@ -126,10 +126,14 @@ const PasswordApi = init(PasswordManager, {message: "Password manager initialise
     .addLogger()
 
 const TokenApi = init(TokenManager, {message: "Token manager initialised", logRule: safeLogLevel}, GlobalConfig).addLogger()
+
+const ExchangeApi = init(ExchangeStorageManager, {message: "Exchange token storage initialised", logRule: safeLogLevel}, GlobalConfig).addLogger()
+
+
 // Declare sub-routers for API and Web domains.
 const routersDeclaration: RoutersDeclaration = [
     {
-        router: init(Api, { message: "Api routes initialised" }, DBApi, GlobalConfig, PasswordApi, TokenApi).addLogger(),
+        router: init(Api, { message: "Api routes initialised" }, DBApi, GlobalConfig, PasswordApi, TokenApi, ExchangeApi).addLogger(),
         path: "/api"
     },
     {
