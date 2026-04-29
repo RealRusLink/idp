@@ -29,23 +29,29 @@
             const res = await fetch('/api/register', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData)
+                body: JSON.stringify(formData),
+                redirect: 'follow'
             });
-
-            const text = await res.text();
-            if (res.redirected){
+            if (res.redirected) {
                 window.location.href = res.url;
+                return;
             }
-            else if (!res.ok) {
+            const text = await res.text();
+
+            if (!res.ok) {
                 output.style.color = 'red';
                 output.innerText = text;
             } else {
                 output.style.color = 'green';
-                output.innerText = `Registered successfully!\nToken (from body): ${text}`;
-                setTimeout(() => window.location.href = '/profile.html', 2000);
+                output.innerText = `Registered successfully!`;
+
+                setTimeout(() => {
+                    window.location.href = 'http://localhost:443/profile';
+                }, 2000);
             }
         } catch (err) {
-            output.innerText = 'Connection error' + err.message;
+            output.style.color = 'red';
+            output.innerText = 'Connection error: ' + err.message;
         }
     };
 </script>

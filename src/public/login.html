@@ -26,23 +26,32 @@
         const output = document.getElementById('output');
 
         try {
-            const res = await fetch('/api/authenticate', {
+            const res = await fetch('/api/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData)
+                body: JSON.stringify(formData),
+                redirect: 'follow'
             });
-
+            if (res.redirected) {
+                window.location.href = res.url;
+                return;
+            }
             const text = await res.text();
+
             if (!res.ok) {
                 output.style.color = 'red';
                 output.innerText = text;
             } else {
                 output.style.color = 'green';
-                output.innerText = `Success!\nToken (from body): ${text}`;
-                setTimeout(() => window.location.href = '/profile.html', 2000);
+                output.innerText = `Logged in successfully!`;
+
+                setTimeout(() => {
+                    window.location.href = 'http://localhost:443/profile';
+                }, 2000);
             }
         } catch (err) {
-            output.innerText = 'Connection error';
+            output.style.color = 'red';
+            output.innerText = 'Connection error: ' + err.message;
         }
     };
 </script>
