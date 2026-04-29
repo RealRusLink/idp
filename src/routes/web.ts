@@ -47,7 +47,6 @@ export class Web extends Hono {
 
         const context = validationResult.data;
 
-        console.log(context)
 
         setCookie(c, "auditor", context.auditor);
         setCookie(c, "redirect_url", context.redirect_url);
