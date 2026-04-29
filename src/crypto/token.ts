@@ -12,6 +12,7 @@ export interface JWTPayload {sub: string, username: string, email: string, exp: 
 
 export type verifyJWTfeedback =
     | { success: false, reason: "Bad JWT format" | "Compromised JWT" | "Expired" }
+    | { success: false, reason: "Expired", payload: JWTPayload }
     | { success: true, payload: JWTPayload };
 
 const JWTPayloadSchema = z.object({
@@ -81,7 +82,7 @@ export class TokenManager {
         const result = JWTPayloadSchema.safeParse(rawPayload);
         if (!result.success) return { success: false, reason: "Bad JWT format" };
         if (result.data.exp < Math.floor(Date.now() / 1000)) {
-            return { success: false, reason: "Expired" };
+            return { success: false, reason: "Expired", payload: result.data };
         }
 
         return { success: true, payload: result.data };
