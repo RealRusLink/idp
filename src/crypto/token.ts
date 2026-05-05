@@ -11,7 +11,7 @@ import z from "zod";
 export interface JWTPayload {sub: string, username: string, email: string, exp: number, iat: number, iss: string, aud: string}
 
 export type verifyJWTfeedback =
-    | { success: false, reason: "Bad JWT format" | "Compromised JWT" | "Expired" }
+    | { success: false, reason: "Bad JWT format" | "Compromised JWT" }
     | { success: false, reason: "Expired", payload: JWTPayload }
     | { success: true, payload: JWTPayload };
 

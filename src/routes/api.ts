@@ -206,6 +206,35 @@ export class Api extends Hono{
 
 
     async rotation(c: Context) {
+        const handleForeignJWT = async (c: Context) => {
+            let expiredJWT: {jwt: string} | undefined;
+            try {
+                expiredJWT = await c.req.json()
+            } catch (err){
+                return {success: false}
+            }
+            const scheme = z.object({
+                jwt: z.string()
+            })
+            expiredJWT = scheme.safeParse(expiredJWT).success ? scheme.safeParse(expiredJWT).data : undefined;
+            if (!expiredJWT) return {success: false}
+            let result: object;
+            const jwtVerificationResult = this.TokenApi.verifyJWT(expiredJWT.jwt);
+            if (expiredJWT && !jwtVerificationResult.success && jwtVerificationResult.reason === "Expired"){
+                const payload = jwtVerificationResult.payload as JWTPayload;
+                result = {
+                    message: "Success",
+                    jwt: this.TokenApi.generateJWT(payload.sub, payload.email, payload.username, payload.aud)
+                }
+                return {
+                    success: true,
+                    result
+                }
+
+            } else {
+                return {success: false}
+            }
+        }
         const validationFormSchema = z.string().max(255)
         const form = getCookie(c,"refresh");
         if (!form) throw new BusinessError("Unauthorised", 401);
@@ -227,7 +256,15 @@ export class Api extends Hono{
         const jwt = this.TokenApi.generateJWT(userDataRequest.data.uuid, userDataRequest.data.email, userDataRequest.data.username)
         setCookie(c, "jwt", jwt)
         setCookie(c, "refresh", newRefreshToken);
-        return c.text(jwt + newRefreshToken, 200)
+
+
+        const foreignJWT = await handleForeignJWT(c);
+
+        return c.json(foreignJWT.success ? foreignJWT.result :
+            {
+                message: "Success",
+                jwt: jwt
+            }, 200)
 
     }
 
